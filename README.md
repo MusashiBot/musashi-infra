@@ -73,6 +73,8 @@ Set these under repository `Settings` -> `Secrets and variables` -> `Actions` ->
 - `SUPABASE_SERVICE_KEY`
 - optional: `KALSHI_BASE_URL`
 
+GitHub Actions now runs an explicit env preflight before each scheduled job, so missing secrets fail with a short setup error instead of a runtime stack trace.
+
 ## Operational Knobs
 
 - `FULL_SYNC_PAGE_SIZE`

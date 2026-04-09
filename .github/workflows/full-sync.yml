@@ -23,11 +23,15 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
-      - run: npm run job:crawl-advance
+      - run: npm run preflight:env -- SUPABASE_URL SUPABASE_SERVICE_KEY
         env:
-          KALSHI_BASE_URL: ${{ secrets.KALSHI_BASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      - run: npm run job:crawl-advance
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          KALSHI_BASE_URL: ${{ secrets.KALSHI_BASE_URL }}
           FULL_SYNC_PAGE_BUDGET: '5'
           FULL_SYNC_ABSOLUTE_MAX_PAGES: '1000'
           CRAWL_ADVANCE_MAX_RUNS: '3'

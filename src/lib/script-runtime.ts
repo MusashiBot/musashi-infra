@@ -1,4 +1,5 @@
 import { loadRuntimeEnv } from './runtime-env.js';
+import { findMissingEnv, formatMissingEnvMessage } from './required-env.js';
 
 export async function bootstrapScriptEnv(
   requiredNames: string[],
@@ -15,12 +16,9 @@ export async function bootstrapScriptEnv(
     }
   }
 
-  const missing = requiredNames.filter((name) => !process.env[name]);
+  const missing = findMissingEnv(requiredNames);
 
   if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variable${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}. ` +
-        'Create a .env file in the repo root or set them in your shell.',
-    );
+    throw new Error(formatMissingEnvMessage(missing, 'local'));
   }
 }
