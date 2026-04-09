@@ -17,6 +17,7 @@
     "job:crawl-advance": "tsx scripts/run-crawl-advance.ts",
     "job:resolution-check": "tsx scripts/run-resolution-check.ts",
     "job:gap-detection": "tsx scripts/run-gap-detection.ts",
+    "doctor": "tsx scripts/doctor.ts",
     "check:supabase": "tsx --env-file=.env scripts/check-supabase.ts",
     "db:apply": "tsx --env-file=.env scripts/apply-migration.ts",
     "status:sync": "tsx scripts/show-sync-status.ts",

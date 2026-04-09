@@ -39,6 +39,40 @@ supabase/migrations/  durable schema
 test/                 unit and contract tests
 ```
 
+## Local Setup
+
+1. Copy `.env.example` to `.env`
+2. Fill in:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_KEY`
+   - optionally `KALSHI_BASE_URL`
+3. Run:
+
+```bash
+npm install
+npm run doctor
+npm run typecheck
+npm test
+```
+
+Core local commands:
+
+```bash
+npm run job:crawl-advance
+npm run job:resolution-check
+npm run job:gap-detection
+npm run status:collection
+npm run status:crawl
+```
+
+## GitHub Actions Secrets
+
+Set these under repository `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_KEY`
+- optional: `KALSHI_BASE_URL`
+
 ## Operational Knobs
 
 - `FULL_SYNC_PAGE_SIZE`
