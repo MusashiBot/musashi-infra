@@ -60,6 +60,7 @@ Core local commands:
 ```bash
 npm run job:crawl-advance
 npm run job:resolution-check
+npm run job:resolution-backfill
 npm run job:gap-detection
 npm run status:collection
 npm run status:crawl
@@ -86,6 +87,8 @@ GitHub Actions now runs an explicit env preflight before each scheduled job, so 
 - `CRAWL_ADVANCE_MAX_RUNS`
 - `CRAWL_ADVANCE_MAX_DURATION_MS`
 - `RESOLUTION_CHECK_MAX_MARKETS`
+- `RESOLUTION_BACKFILL_MAX_RUNS`
+- `RESOLUTION_BACKFILL_MAX_DURATION_MS`
 - `GAP_DETECTION_MAX_MARKETS`
 - `SNAPSHOT_CANDIDATE_LIMIT`
 - `SNAPSHOT_ACTIVE_WINDOW_HOURS`
