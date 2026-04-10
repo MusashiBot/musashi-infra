@@ -24,6 +24,7 @@
     "status:sync": "tsx scripts/show-sync-status.ts",
     "status:crawl": "tsx scripts/show-crawl-progress.ts",
     "status:collection": "tsx scripts/show-collection-summary.ts",
+    "status:storage": "tsx scripts/show-storage-summary.ts",
     "check:collection": "tsx scripts/check-collection-health.ts"
   },
   "dependencies": {

@@ -85,6 +85,10 @@ GitHub Actions now runs an explicit env preflight before each scheduled job, so 
 - `CRAWL_ADVANCE_MAX_DURATION_MS`
 - `RESOLUTION_CHECK_MAX_MARKETS`
 - `GAP_DETECTION_MAX_MARKETS`
+- `SNAPSHOT_CANDIDATE_LIMIT`
+- `SNAPSHOT_ACTIVE_WINDOW_HOURS`
+- `SNAPSHOT_MIN_VOLUME_24H`
+- `SNAPSHOT_MIN_LIQUIDITY`
 
 The full sync is designed to advance the exchange crawl in bounded runs. It resumes from `sync_checkpoints` until the crawl completes.
 
@@ -93,5 +97,7 @@ Use `npm run job:crawl-advance` when you want a single command to chain multiple
 Use `npm run status:collection` for a short operational summary of checkpoint progress, Kalshi source health, and the most recent full-sync runs.
 
 Use `npm run status:crawl` when you want a throughput-oriented view of the crawl, including recent markets-per-minute and snapshots-per-minute across bounded full-sync runs.
+
+Use `npm run status:storage` when you want table counts and snapshot-growth proxies without opening Supabase usage pages.
 
 Use `npm run check:collection` when you want the process to fail if collection is stalled, unhealthy, or showing non-budget full-sync errors.

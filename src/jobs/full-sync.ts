@@ -7,6 +7,7 @@ import {
 } from '../api/kalshi-client.js';
 import { normalizeKalshiBatch } from '../api/normalizer.js';
 import { getEnv } from '../lib/env.js';
+import { selectSnapshotCandidates } from '../lib/snapshot-policy.js';
 import { getCheckpoint, upsertCheckpoint, clearCheckpoint } from '../db/checkpoints.js';
 import { failOpenRuns, startRun, completeRun, updateRunProgress } from '../db/ingestion-log.js';
 import { upsertMarkets } from '../db/markets.js';
@@ -22,6 +23,7 @@ export async function runFullSync(): Promise<IngestionRunRecord> {
   const env = getEnv();
   const checkpoint = await getCheckpoint(FULL_SYNC_CHECKPOINT_KEY);
   const snapshotTime = checkpoint?.snapshot_time ? new Date(checkpoint.snapshot_time) : startedAt;
+  const snapshotCandidates = [];
 
   await failOpenRuns('full_sync', 'Superseded by a newer full_sync run before completion.');
 
@@ -99,16 +101,17 @@ export async function runFullSync(): Promise<IngestionRunRecord> {
 
       const upsertResult = await upsertMarkets(normalizedBatch.normalized);
       result.kalshi_markets_new += upsertResult.kalshi_new;
-
-      const snapshotResult = await writeSnapshots(
+      const pageSnapshotCandidates = selectSnapshotCandidates(
         normalizedBatch.normalized.map(({ market }) => market),
-        snapshotTime,
+        fetchedAt,
         {
-          source: 'kalshi_api_v2',
-          fetchLatencyMs: page.fetch_ms,
+          limit: Math.max(0, env.snapshotCandidateLimit - snapshotCandidates.length),
+          activeWindowHours: env.snapshotActiveWindowHours,
+          minVolume24h: env.snapshotMinVolume24h,
+          minLiquidity: env.snapshotMinLiquidity,
         },
       );
-      result.kalshi_snapshots_written += snapshotResult.kalshi_written;
+      snapshotCandidates.push(...pageSnapshotCandidates);
 
       nextCursor = page.cursor;
 
@@ -128,6 +131,7 @@ export async function runFullSync(): Promise<IngestionRunRecord> {
           pageIndex,
           marketCount: result.kalshi_markets_fetched,
           snapshotsWritten: result.kalshi_snapshots_written,
+          snapshotCandidates: snapshotCandidates.length,
           nextCursor,
         });
         await updateRunProgress(jobId, {
@@ -143,6 +147,12 @@ export async function runFullSync(): Promise<IngestionRunRecord> {
       }
     }
 
+    const snapshotResult = await writeSnapshots(snapshotCandidates, snapshotTime, {
+      source: 'kalshi_api_v2',
+      fetchLatencyMs: result.kalshi_fetch_ms,
+    });
+    result.kalshi_snapshots_written += snapshotResult.kalshi_written;
+
     await updateSourceHealth({
       source: 'kalshi',
       is_available: true,
@@ -154,7 +164,7 @@ export async function runFullSync(): Promise<IngestionRunRecord> {
 
     await clearCheckpoint(FULL_SYNC_CHECKPOINT_KEY);
     result.status = result.errors.length > 0 ? 'partial' : 'success';
-    result.notes = `Processed ${result.kalshi_markets_fetched} Kalshi markets across ${checkpoint?.page_count ? 'a resumed' : 'a fresh'} full sync and wrote ${result.kalshi_snapshots_written} snapshots.`;
+    result.notes = `Processed ${result.kalshi_markets_fetched} Kalshi markets across ${checkpoint?.page_count ? 'a resumed' : 'a fresh'} full sync and wrote ${result.kalshi_snapshots_written} active-market snapshots.`;
   } catch (error) {
     const errorType = classifyFullSyncError(error);
     result.kalshi_available = errorType === 'source_unavailable' ? false : true;
@@ -205,10 +215,11 @@ function formatProgressNote(input: {
   pageIndex: number;
   marketCount: number;
   snapshotsWritten: number;
+  snapshotCandidates: number;
   nextCursor: string;
 }): string {
   const prefix = input.resumed ? 'Resuming full sync' : 'Running full sync';
   const cursorState = input.nextCursor === '' ? 'complete' : 'checkpoint saved';
 
-  return `${prefix}: page ${input.pageIndex}, markets ${input.marketCount}, snapshots ${input.snapshotsWritten}, ${cursorState}.`;
+  return `${prefix}: page ${input.pageIndex}, markets ${input.marketCount}, snapshot candidates ${input.snapshotCandidates}, snapshots ${input.snapshotsWritten}, ${cursorState}.`;
 }

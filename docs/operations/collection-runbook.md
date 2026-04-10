@@ -18,9 +18,10 @@ The collection system advances the Kalshi crawl in bounded runs and resumes from
 
 1. `job:crawl-advance` chains multiple bounded `job:full-sync` runs.
 2. Each `job:full-sync` run processes up to `FULL_SYNC_PAGE_BUDGET` pages.
-3. Each page is normalized and written before the next page is fetched.
-4. Progress is persisted to `sync_checkpoints`.
-5. Later runs resume from the saved cursor.
+3. Registry rows are upserted for all fetched markets.
+4. Snapshots are written only for the active subset selected by the snapshot policy.
+5. Progress is persisted to `sync_checkpoints`.
+6. Later runs resume from the saved cursor.
 
 ## Important Environment Knobs
 
@@ -29,13 +30,17 @@ The collection system advances the Kalshi crawl in bounded runs and resumes from
 - `FULL_SYNC_ABSOLUTE_MAX_PAGES`
 - `CRAWL_ADVANCE_MAX_RUNS`
 - `CRAWL_ADVANCE_MAX_DURATION_MS`
+- `SNAPSHOT_CANDIDATE_LIMIT`
+- `SNAPSHOT_ACTIVE_WINDOW_HOURS`
+- `SNAPSHOT_MIN_VOLUME_24H`
+- `SNAPSHOT_MIN_LIQUIDITY`
 
 ## What Healthy Collection Looks Like
 
 - `source_health.kalshi.is_available = true`
 - `sync_checkpoints.market_count` keeps increasing
 - recent `ingestion_runs` show `status = partial` with `error_type = page_budget_exhausted`
-- `market_snapshots` count keeps increasing
+- `market_snapshots` count keeps increasing more slowly than registry coverage
 
 ## What Needs Investigation
 
@@ -52,3 +57,13 @@ The collection system advances the Kalshi crawl in bounded runs and resumes from
 - `ingestion_runs`
 - `sync_checkpoints`
 - `source_health`
+
+## Storage-First Default
+
+The default collection mode is now registry-first:
+
+- broad market registry coverage is preserved
+- hourly snapshots are limited to the active subset
+- full raw upstream payloads are no longer retained in the hot `markets` table
+
+This keeps the Kalshi crawl sustainable while still preserving the market history that matters most.

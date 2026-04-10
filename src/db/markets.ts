@@ -49,7 +49,6 @@ interface MarketRow {
   resolved_at: string | null;
   last_ingested_at: string;
   is_active: boolean;
-  platform_raw: unknown;
 }
 
 export async function upsertMarkets(records: NormalizerResult[]): Promise<MarketUpsertResult> {
@@ -157,7 +156,7 @@ export async function listSnapshotGapCandidates(thresholdIso: string, limit?: nu
   return (data ?? []) as SnapshotGapCandidate[];
 }
 
-function toMarketRow({ market, platform_raw }: NormalizerResult): MarketRow {
+function toMarketRow({ market }: NormalizerResult): MarketRow {
   return {
     id: market.id,
     platform: market.platform,
@@ -182,6 +181,5 @@ function toMarketRow({ market, platform_raw }: NormalizerResult): MarketRow {
     resolved_at: market.resolved_at,
     last_ingested_at: market.fetched_at,
     is_active: true,
-    platform_raw,
   };
 }

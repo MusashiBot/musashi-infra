@@ -24,6 +24,10 @@ export interface MusashiEnv {
   crawlAdvanceMaxDurationMs: number;
   collectionStallMaxMinutes: number;
   collectionRunMaxAgeMinutes: number;
+  snapshotCandidateLimit: number;
+  snapshotActiveWindowHours: number;
+  snapshotMinVolume24h: number;
+  snapshotMinLiquidity: number;
 }
 
 export function getEnv(): MusashiEnv {
@@ -43,6 +47,10 @@ export function getEnv(): MusashiEnv {
     crawlAdvanceMaxDurationMs: Number(process.env.CRAWL_ADVANCE_MAX_DURATION_MS ?? '900000'),
     collectionStallMaxMinutes: Number(process.env.COLLECTION_STALL_MAX_MINUTES ?? '180'),
     collectionRunMaxAgeMinutes: Number(process.env.COLLECTION_RUN_MAX_AGE_MINUTES ?? '30'),
+    snapshotCandidateLimit: Number(process.env.SNAPSHOT_CANDIDATE_LIMIT ?? '1000'),
+    snapshotActiveWindowHours: Number(process.env.SNAPSHOT_ACTIVE_WINDOW_HOURS ?? '24'),
+    snapshotMinVolume24h: Number(process.env.SNAPSHOT_MIN_VOLUME_24H ?? '1000'),
+    snapshotMinLiquidity: Number(process.env.SNAPSHOT_MIN_LIQUIDITY ?? '1000'),
   };
 }
 
