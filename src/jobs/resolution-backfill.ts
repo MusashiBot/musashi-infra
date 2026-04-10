@@ -31,7 +31,12 @@ export async function backfillResolutions(): Promise<ResolutionBackfillSummary> 
       break;
     }
 
-    const run = await runResolutionCheck();
+    const run = await runResolutionCheck({
+      runType: 'resolution_backfill',
+      maxMarkets: env.resolutionBackfillMaxMarkets,
+      fetchConcurrency: env.resolutionBackfillFetchConcurrency,
+      workerRateLimitMs: env.resolutionBackfillWorkerRateLimitMs,
+    });
     runsCompleted += 1;
     lastRunStatus = run.status;
     totalMarketsChecked += run.kalshi_markets_fetched;
@@ -40,6 +45,11 @@ export async function backfillResolutions(): Promise<ResolutionBackfillSummary> 
 
     if (run.status === 'failed') {
       stoppedReason = 'run_failed';
+      break;
+    }
+
+    if (run.resolutions_detected === 0 && run.kalshi_errors === 0) {
+      stoppedReason = 'max_runs_reached';
       break;
     }
 

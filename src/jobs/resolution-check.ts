@@ -10,23 +10,36 @@ import { getEnv } from '../lib/env.js';
 import type { MarketResolution } from '../types/storage.js';
 import type { IngestionRunRecord } from '../types/storage.js';
 
-export async function runResolutionCheck(): Promise<IngestionRunRecord> {
+export interface ResolutionCheckOptions {
+  runType?: string;
+  maxMarkets?: number;
+  fetchConcurrency?: number;
+  workerRateLimitMs?: number;
+  progressEveryMarkets?: number;
+}
+
+export async function runResolutionCheck(options: ResolutionCheckOptions = {}): Promise<IngestionRunRecord> {
   const jobId = randomUUID();
   const startedAt = new Date();
   const env = getEnv();
+  const runType = options.runType ?? 'resolution_check';
+  const maxMarkets = options.maxMarkets ?? env.resolutionCheckMaxMarkets;
+  const fetchConcurrency = options.fetchConcurrency ?? env.resolutionCheckFetchConcurrency;
+  const workerRateLimitMs = options.workerRateLimitMs ?? env.resolutionCheckWorkerRateLimitMs;
+  const progressEveryMarkets = options.progressEveryMarkets ?? env.resolutionCheckProgressEveryMarkets;
 
-  await failOpenRuns('resolution_check', 'Superseded by a newer resolution_check run before completion.');
+  await failOpenRuns(runType, `Superseded by a newer ${runType} run before completion.`);
 
   await startRun({
     job_id: jobId,
-    run_type: 'resolution_check',
+    run_type: runType,
     started_at: startedAt.toISOString(),
     status: 'running',
   });
 
   const result: IngestionRunRecord = {
     job_id: jobId,
-    run_type: 'resolution_check',
+    run_type: runType,
     started_at: startedAt.toISOString(),
     completed_at: null,
     duration_ms: null,
@@ -49,18 +62,18 @@ export async function runResolutionCheck(): Promise<IngestionRunRecord> {
   };
 
   try {
-    const candidates = await listResolutionCandidates(startedAt, env.resolutionCheckMaxMarkets);
+    const candidates = await listResolutionCandidates(startedAt, maxMarkets);
     const kalshiCandidates = candidates.filter((candidate) => candidate.platform === 'kalshi');
     const startedAtIso = startedAt.toISOString();
     let processed = 0;
 
     const processedCandidates = await mapWithConcurrency(
       kalshiCandidates,
-      env.resolutionCheckFetchConcurrency,
+      fetchConcurrency,
       async (candidate, index) => {
         const client = new KalshiClient({
           baseUrl: env.kalshiBaseUrl,
-          rateLimitMs: env.resolutionCheckWorkerRateLimitMs,
+          rateLimitMs: workerRateLimitMs,
         });
 
         try {
@@ -103,7 +116,7 @@ export async function runResolutionCheck(): Promise<IngestionRunRecord> {
 
           processed += 1;
 
-          if (processed % env.resolutionCheckProgressEveryMarkets === 0) {
+          if (processed % progressEveryMarkets === 0) {
             result.notes = `Resolution check in progress: processed ${processed}/${kalshiCandidates.length}, detected ${result.resolutions_detected}, errors ${result.kalshi_errors}.`;
             await updateRunProgress(jobId, {
               kalshi_markets_fetched: processed,
@@ -132,7 +145,7 @@ export async function runResolutionCheck(): Promise<IngestionRunRecord> {
           };
           result.errors.push(runError);
 
-          if (processed % env.resolutionCheckProgressEveryMarkets === 0) {
+          if (processed % progressEveryMarkets === 0) {
             result.notes = `Resolution check in progress: processed ${processed}/${kalshiCandidates.length}, detected ${result.resolutions_detected}, errors ${result.kalshi_errors}.`;
             await updateRunProgress(jobId, {
               kalshi_markets_fetched: processed,

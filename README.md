@@ -106,6 +106,7 @@ Use `npm run status:crawl` when you want a throughput-oriented view of the crawl
 Use `npm run status:storage` when you want table counts and snapshot-growth proxies without opening Supabase usage pages.
 
 Use `npm run status:resolution` when you want to see whether settled markets are being detected and how many unresolved past-close markets remain.
+It reports both the steady 5-minute resolution check and the larger backlog backfill runner.
 
 Use `npm run status:gap` when you want to see current snapshot gap pressure and the recent health of the backfill job.
 
