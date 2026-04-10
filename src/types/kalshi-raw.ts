@@ -12,7 +12,7 @@ export interface KalshiMarketRaw {
   close_time?: string;
   latest_expiration_time?: string;
   settlement_timer_seconds?: number;
-  status: 'initialized' | 'unopened' | 'open' | 'active' | 'closed' | 'settled';
+  status: 'initialized' | 'unopened' | 'open' | 'active' | 'closed' | 'settled' | 'finalized';
   yes_bid_dollars?: string;
   yes_bid_size_fp?: string;
   yes_ask_dollars?: string;
@@ -62,7 +62,7 @@ export interface KalshiEventRaw {
   series_ticker: string;
   title: string;
   sub_title?: string;
-  status: 'initialized' | 'unopened' | 'open' | 'active' | 'closed' | 'settled';
+  status: 'initialized' | 'unopened' | 'open' | 'active' | 'closed' | 'settled' | 'finalized';
   category?: string;
   mutually_exclusive?: boolean;
   strike_date?: string;

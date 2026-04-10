@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 
 import { KalshiClient } from '../api/kalshi-client.js';
 import { failOpenRuns, startRun, completeRun, updateRunProgress } from '../db/ingestion-log.js';
-import { listResolutionCandidates } from '../db/markets.js';
-import { insertResolution } from '../db/resolutions.js';
+import { listResolutionCandidates, updateMarketLifecycle } from '../db/markets.js';
+import { applyResolvedMarketState, insertResolutions } from '../db/resolutions.js';
 import { updateSourceHealth } from '../db/source-health.js';
 import { getEnv } from '../lib/env.js';
+import type { MarketResolution } from '../types/storage.js';
 import type { IngestionRunRecord } from '../types/storage.js';
 
 export async function runResolutionCheck(): Promise<IngestionRunRecord> {
@@ -50,6 +51,7 @@ export async function runResolutionCheck(): Promise<IngestionRunRecord> {
 
   try {
     const candidates = await listResolutionCandidates(startedAt, env.resolutionCheckMaxMarkets);
+    const pendingResolutions: MarketResolution[] = [];
 
     let processed = 0;
 
@@ -63,21 +65,29 @@ export async function runResolutionCheck(): Promise<IngestionRunRecord> {
         result.kalshi_markets_fetched += 1;
         const raw = await client.fetchMarket(candidate.platform_id);
 
-        if (!raw || raw.status !== 'settled' || !raw.result) {
+        if (!raw) {
           continue;
         }
 
-        const inserted = await insertResolution({
-          market_id: candidate.id,
-          outcome: raw.result === 'yes' ? 'YES' : 'NO',
-          resolved_at: raw.latest_expiration_time ?? raw.close_time ?? startedAt.toISOString(),
-          final_yes_price: raw.last_price_dollars ? Number(raw.last_price_dollars) : null,
-          resolution_source: 'kalshi_api_v2',
-          detected_at: startedAt.toISOString(),
-        });
+        const lifecycleStatus = mapResolutionLifecycleStatus(raw.status);
 
-        if (inserted) {
-          result.resolutions_detected += 1;
+        if (lifecycleStatus === 'resolved' && raw.result) {
+          pendingResolutions.push({
+            market_id: candidate.id,
+            outcome: raw.result === 'yes' ? 'YES' : 'NO',
+            resolved_at: raw.latest_expiration_time ?? raw.close_time ?? startedAt.toISOString(),
+            final_yes_price: raw.last_price_dollars ? Number(raw.last_price_dollars) : null,
+            resolution_source: 'kalshi_api_v2',
+            detected_at: startedAt.toISOString(),
+          });
+        } else {
+          await updateMarketLifecycle(candidate.id, {
+            status: lifecycleStatus,
+            resolved: false,
+            resolution: null,
+            resolved_at: null,
+            last_ingested_at: startedAt.toISOString(),
+          });
         }
       } catch (error) {
         result.kalshi_errors += 1;
@@ -101,6 +111,10 @@ export async function runResolutionCheck(): Promise<IngestionRunRecord> {
         });
       }
     }
+
+    const insertedCount = await insertResolutions(pendingResolutions);
+    await applyResolvedMarketState(pendingResolutions);
+    result.resolutions_detected = insertedCount;
 
     result.status = result.kalshi_errors > 0 ? 'partial' : 'success';
     result.notes = `Checked ${result.kalshi_markets_fetched} Kalshi markets and detected ${result.resolutions_detected} resolutions with ${result.kalshi_errors} errors.`;
@@ -134,4 +148,16 @@ export async function runResolutionCheck(): Promise<IngestionRunRecord> {
   result.duration_ms = new Date(result.completed_at).getTime() - startedAt.getTime();
   await completeRun(result);
   return result;
+}
+
+function mapResolutionLifecycleStatus(status: string): 'open' | 'closed' | 'resolved' {
+  if (status === 'settled' || status === 'finalized') {
+    return 'resolved';
+  }
+
+  if (status === 'closed') {
+    return 'closed';
+  }
+
+  return 'open';
 }

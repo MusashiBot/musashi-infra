@@ -1,6 +1,7 @@
 import type { NormalizerResult } from '../api/normalizer.js';
 import { chunkArray } from '../lib/collections.js';
 import type { MusashiMarket } from '../types/market.js';
+import type { MarketStatus, ResolutionOutcome } from '../types/market.js';
 import { getSupabase } from './supabase.js';
 
 const DB_BATCH_SIZE = 200;
@@ -154,6 +155,33 @@ export async function listSnapshotGapCandidates(thresholdIso: string, limit?: nu
   }
 
   return (data ?? []) as SnapshotGapCandidate[];
+}
+
+export async function updateMarketLifecycle(
+  marketId: string,
+  updates: {
+    status: MarketStatus;
+    resolved: boolean;
+    resolution: ResolutionOutcome | null;
+    resolved_at: string | null;
+    last_ingested_at: string;
+  },
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('markets')
+    .update({
+      status: updates.status,
+      resolved: updates.resolved,
+      resolution: updates.resolution,
+      resolved_at: updates.resolved_at,
+      last_ingested_at: updates.last_ingested_at,
+    })
+    .eq('id', marketId);
+
+  if (error) {
+    throw new Error(`Failed to update market lifecycle: ${error.message}`);
+  }
 }
 
 function toMarketRow({ market }: NormalizerResult): MarketRow {

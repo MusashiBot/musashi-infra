@@ -74,6 +74,20 @@ describe('normalizeKalshiMarket', () => {
     expect(market.resolution).toBe('YES');
   });
 
+  it('marks finalized markets as resolved', () => {
+    const { market } = normalizeKalshiMarket(
+      buildRaw({
+        status: 'finalized',
+        result: 'no',
+      }),
+      new Date('2026-04-08T12:00:00Z'),
+    );
+
+    expect(market.status).toBe('resolved');
+    expect(market.resolved).toBe(true);
+    expect(market.resolution).toBe('NO');
+  });
+
   it('throws when no usable price fields are present', () => {
     const raw = buildRaw();
     delete raw.last_price_dollars;

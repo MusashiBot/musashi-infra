@@ -148,6 +148,7 @@ function normalizeKalshiCategory(raw: KalshiMarketRaw): MarketCategory {
 function mapKalshiStatus(status: KalshiMarketRaw['status']): MarketStatus {
   switch (status) {
     case 'settled':
+    case 'finalized':
       return 'resolved';
     case 'closed':
       return 'closed';

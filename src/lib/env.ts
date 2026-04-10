@@ -39,7 +39,7 @@ export function getEnv(): MusashiEnv {
     fullSyncPageBudget: Number(process.env.FULL_SYNC_PAGE_BUDGET ?? '10'),
     fullSyncAbsoluteMaxPages: Number(process.env.FULL_SYNC_ABSOLUTE_MAX_PAGES ?? '1000'),
     fullSyncProgressEveryPages: Number(process.env.FULL_SYNC_PROGRESS_EVERY_PAGES ?? '1'),
-    resolutionCheckMaxMarkets: Number(process.env.RESOLUTION_CHECK_MAX_MARKETS ?? '500'),
+    resolutionCheckMaxMarkets: Number(process.env.RESOLUTION_CHECK_MAX_MARKETS ?? '200'),
     resolutionCheckProgressEveryMarkets: Number(process.env.RESOLUTION_CHECK_PROGRESS_EVERY_MARKETS ?? '25'),
     gapDetectionMaxMarkets: Number(process.env.GAP_DETECTION_MAX_MARKETS ?? '500'),
     gapDetectionProgressEveryMarkets: Number(process.env.GAP_DETECTION_PROGRESS_EVERY_MARKETS ?? '25'),
