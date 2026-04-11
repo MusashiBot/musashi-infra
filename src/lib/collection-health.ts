@@ -33,9 +33,16 @@ export interface CollectionHealthResult {
 
 export function evaluateCollectionHealth(input: CollectionHealthInput): CollectionHealthResult {
   const reasons: string[] = [];
+  const latestRunCompletedSuccessfully =
+    input.latestRun !== null &&
+    input.latestRun.completed_at !== null &&
+    input.latestRun.status === 'success' &&
+    input.latestRun.error_types.length === 0;
 
   if (input.checkpoint === null) {
-    reasons.push('Missing kalshi_full_sync checkpoint');
+    if (!latestRunCompletedSuccessfully) {
+      reasons.push('Missing kalshi_full_sync checkpoint');
+    }
   } else if (minutesSince(input.checkpoint.updated_at, input.now) > input.stallMaxMinutes) {
     reasons.push(`Checkpoint stale for more than ${input.stallMaxMinutes} minutes`);
   }

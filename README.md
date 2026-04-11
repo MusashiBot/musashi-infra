@@ -104,6 +104,7 @@ Use `npm run status:collection` for a short operational summary of checkpoint pr
 Use `npm run status:crawl` when you want a throughput-oriented view of the crawl, including recent markets-per-minute and snapshots-per-minute across bounded full-sync runs.
 
 Use `npm run status:storage` when you want table counts and snapshot-growth proxies without opening Supabase usage pages.
+If `SUPABASE_DB_HOST`, `SUPABASE_DB_NAME`, `SUPABASE_DB_USER`, and `SUPABASE_DB_PASSWORD` are set, it also reports real per-table storage size.
 
 Use `npm run status:resolution` when you want to see whether settled markets are being detected and how many unresolved past-close markets remain.
 It reports both the steady 5-minute resolution check and the larger backlog backfill runner.

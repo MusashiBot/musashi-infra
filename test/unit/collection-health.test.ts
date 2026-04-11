@@ -85,4 +85,27 @@ describe('evaluateCollectionHealth', () => {
     expect(result.healthy).toBe(false);
     expect(result.reasons.join(' ')).toContain('non-budget errors');
   });
+
+  it('accepts a missing checkpoint when the latest full sync completed cleanly', () => {
+    const result = evaluateCollectionHealth({
+      now,
+      checkpoint: null,
+      latestRun: {
+        started_at: '2026-04-08T11:45:00.000Z',
+        completed_at: '2026-04-08T11:50:00.000Z',
+        status: 'success',
+        error_types: [],
+      },
+      sourceHealth: {
+        is_available: true,
+        last_successful_fetch: '2026-04-08T11:50:00.000Z',
+        last_error: null,
+      },
+      stallMaxMinutes: 180,
+      runMaxAgeMinutes: 30,
+    });
+
+    expect(result.healthy).toBe(true);
+    expect(result.reasons).toEqual([]);
+  });
 });

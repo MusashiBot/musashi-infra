@@ -185,7 +185,6 @@ export async function runResolutionCheck(options: ResolutionCheckOptions = {}): 
     await updateSourceHealth({
       source: 'kalshi',
       is_available: true,
-      market_count: result.kalshi_markets_fetched,
       last_successful_fetch: new Date().toISOString(),
       last_error: null,
       last_error_at: null,
@@ -202,7 +201,6 @@ export async function runResolutionCheck(options: ResolutionCheckOptions = {}): 
     await updateSourceHealth({
       source: 'kalshi',
       is_available: false,
-      market_count: result.kalshi_markets_fetched,
       last_error: error instanceof Error ? error.message : String(error),
       last_error_at: new Date().toISOString(),
     });
