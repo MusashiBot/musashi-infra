@@ -1,5 +1,6 @@
 import type { MarketResolution } from '../types/storage.js';
 import { chunkArray } from '../lib/collections.js';
+import { isMarketActive } from '../lib/market-lifecycle.js';
 import { getSupabase } from './supabase.js';
 
 const DB_BATCH_SIZE = 200;
@@ -59,6 +60,7 @@ export async function applyResolvedMarketState(resolutions: MarketResolution[]):
         .update({
           resolved: true,
           status: 'resolved',
+          is_active: isMarketActive('resolved', true),
           resolution: resolution.outcome,
           resolved_at: resolution.resolved_at,
           last_ingested_at: resolution.detected_at,

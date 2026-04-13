@@ -10,7 +10,7 @@ import { getEnv } from '../lib/env.js';
 import { selectSnapshotCandidates } from '../lib/snapshot-policy.js';
 import { getCheckpoint, upsertCheckpoint, clearCheckpoint } from '../db/checkpoints.js';
 import { failOpenRuns, startRun, completeRun, updateRunProgress } from '../db/ingestion-log.js';
-import { upsertMarkets } from '../db/markets.js';
+import { reconcileMissingOpenMarkets, upsertMarkets } from '../db/markets.js';
 import { writeSnapshots } from '../db/snapshots.js';
 import { updateSourceHealth } from '../db/source-health.js';
 import type { IngestionRunRecord } from '../types/storage.js';
@@ -152,6 +152,7 @@ export async function runFullSync(): Promise<IngestionRunRecord> {
       fetchLatencyMs: result.kalshi_fetch_ms,
     });
     result.kalshi_snapshots_written += snapshotResult.kalshi_written;
+    const reconciledClosedMarkets = await reconcileMissingOpenMarkets('kalshi', startedAt.toISOString());
 
     await updateSourceHealth({
       source: 'kalshi',
@@ -164,7 +165,7 @@ export async function runFullSync(): Promise<IngestionRunRecord> {
 
     await clearCheckpoint(FULL_SYNC_CHECKPOINT_KEY);
     result.status = result.errors.length > 0 ? 'partial' : 'success';
-    result.notes = `Processed ${result.kalshi_markets_fetched} Kalshi markets across ${checkpoint?.page_count ? 'a resumed' : 'a fresh'} full sync and wrote ${result.kalshi_snapshots_written} active-market snapshots.`;
+    result.notes = `Processed ${result.kalshi_markets_fetched} Kalshi markets across ${checkpoint?.page_count ? 'a resumed' : 'a fresh'} full sync, wrote ${result.kalshi_snapshots_written} active-market snapshots, and reconciled ${reconciledClosedMarkets} missing open markets.`;
   } catch (error) {
     const errorType = classifyFullSyncError(error);
     result.kalshi_available = errorType === 'source_unavailable' ? false : true;

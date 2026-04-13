@@ -1,5 +1,6 @@
 import type { NormalizerResult } from '../api/normalizer.js';
 import { chunkArray } from '../lib/collections.js';
+import { isMarketActive } from '../lib/market-lifecycle.js';
 import type { MusashiMarket } from '../types/market.js';
 import type { MarketStatus, ResolutionOutcome } from '../types/market.js';
 import { getSupabase } from './supabase.js';
@@ -176,12 +177,58 @@ export async function updateMarketLifecycle(
       resolution: updates.resolution,
       resolved_at: updates.resolved_at,
       last_ingested_at: updates.last_ingested_at,
+      is_active: isMarketActive(updates.status, updates.resolved),
     })
     .eq('id', marketId);
 
   if (error) {
     throw new Error(`Failed to update market lifecycle: ${error.message}`);
   }
+}
+
+export async function reconcileMissingOpenMarkets(
+  platform: MusashiMarket['platform'],
+  crawlStartedAtIso: string,
+): Promise<number> {
+  const supabase = getSupabase();
+  let totalUpdated = 0;
+
+  while (true) {
+    const { data: staleRows, error: selectError } = await supabase
+      .from('markets')
+      .select('id')
+      .eq('platform', platform)
+      .eq('status', 'open')
+      .eq('resolved', false)
+      .lt('last_ingested_at', crawlStartedAtIso)
+      .limit(DB_BATCH_SIZE);
+
+    if (selectError) {
+      throw new Error(`Failed to select missing open markets: ${selectError.message}`);
+    }
+
+    const ids = (staleRows ?? []).map((row) => String(row.id));
+
+    if (ids.length === 0) {
+      break;
+    }
+
+    const { error: updateError } = await supabase
+      .from('markets')
+      .update({
+        status: 'closed',
+        is_active: false,
+      })
+      .in('id', ids);
+
+    if (updateError) {
+      throw new Error(`Failed to reconcile missing open markets: ${updateError.message}`);
+    }
+
+    totalUpdated += ids.length;
+  }
+
+  return totalUpdated;
 }
 
 function toMarketRow({ market }: NormalizerResult): MarketRow {
