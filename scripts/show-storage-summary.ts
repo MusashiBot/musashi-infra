@@ -15,7 +15,7 @@ const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY, {
   },
 });
 
-const [marketCount, snapshotCount, resolutionCount, checkpointResult, runsResult, tableSizes] = await Promise.all([
+const [marketCount, snapshotCount, resolutionCount, checkpointResult, runsResult, tableSizes, maintenance] = await Promise.all([
   countRows('markets'),
   countRows('market_snapshots'),
   countRows('market_resolutions'),
@@ -27,6 +27,7 @@ const [marketCount, snapshotCount, resolutionCount, checkpointResult, runsResult
     .order('started_at', { ascending: false })
     .limit(12),
   loadTableSizes(),
+  loadMaintenanceSummary(),
 ]);
 
 const recentRuns = runsResult.data ?? [];
@@ -44,6 +45,7 @@ console.log(
         last_12_full_sync_runs: recentSnapshotWrites,
       },
       table_sizes: tableSizes,
+      maintenance,
       checkpoint: checkpointResult.data,
     },
     null,
@@ -112,6 +114,61 @@ async function loadTableSizes(): Promise<Array<{ table_name: string; total_size:
       total_size: row.total_size,
       bytes: Number(row.bytes),
     }));
+  } finally {
+    await sql.end();
+  }
+}
+
+async function loadMaintenanceSummary(): Promise<{
+  prune_candidates_older_than_24h: number;
+  resolved_active_rows: number;
+} | null> {
+  if (
+    !env.SUPABASE_DB_HOST ||
+    !env.SUPABASE_DB_NAME ||
+    !env.SUPABASE_DB_USER ||
+    !env.SUPABASE_DB_PASSWORD
+  ) {
+    return null;
+  }
+
+  const sql = postgres({
+    host: env.SUPABASE_DB_HOST,
+    port: Number(env.SUPABASE_DB_PORT ?? '5432'),
+    database: env.SUPABASE_DB_NAME,
+    username: env.SUPABASE_DB_USER,
+    password: env.SUPABASE_DB_PASSWORD,
+    ssl: 'require',
+    max: 1,
+  });
+
+  try {
+    const [pruneRows, resolvedRows] = await Promise.all([
+      sql.unsafe(`select count(*)::bigint as prune_candidates
+                    from markets m
+                   where m.platform = 'kalshi'
+                     and m.status = 'closed'
+                     and m.resolved = false
+                     and m.is_active = false
+                     and m.last_snapshot_at is null
+                     and m.last_ingested_at < now() - interval '24 hours'
+                     and not exists (select 1 from market_resolutions r where r.market_id = m.id)`),
+      sql.unsafe(`select count(*)::bigint as resolved_active_rows
+                    from markets
+                   where platform = 'kalshi'
+                     and status = 'resolved'
+                     and resolved = true
+                     and is_active = true`),
+    ]);
+
+    return {
+      prune_candidates_older_than_24h: Number(
+        (pruneRows as unknown as Array<{ prune_candidates: string }>)[0]?.prune_candidates ?? 0,
+      ),
+      resolved_active_rows: Number(
+        (resolvedRows as unknown as Array<{ resolved_active_rows: string }>)[0]?.resolved_active_rows ?? 0,
+      ),
+    };
   } finally {
     await sql.end();
   }

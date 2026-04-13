@@ -123,6 +123,7 @@ Use `npm run status:crawl` when you want a throughput-oriented view of the crawl
 
 Use `npm run status:storage` when you want table counts and snapshot-growth proxies without opening Supabase usage pages.
 If `SUPABASE_DB_HOST`, `SUPABASE_DB_NAME`, `SUPABASE_DB_USER`, and `SUPABASE_DB_PASSWORD` are set, it also reports real per-table storage size.
+It also reports prune candidates for low-value inactive Kalshi rows and legacy resolved rows that still need deactivation.
 
 Use `npm run status:resolution` when you want to see whether settled markets are being detected and how many unresolved past-close markets remain.
 It reports both the steady 5-minute resolution check and the larger backlog backfill runner.
@@ -130,3 +131,6 @@ It reports both the steady 5-minute resolution check and the larger backlog back
 Use `npm run status:gap` when you want to see current snapshot gap pressure and the recent health of the backfill job.
 
 Use `npm run check:collection` when you want the process to fail if collection is stalled, unhealthy, or showing non-budget full-sync errors.
+
+Use `npm run job:prune-inactive-markets` to inspect low-value inactive Kalshi market rows that are eligible for deletion.
+It runs in dry-run mode by default. Set `MARKET_PRUNE_EXECUTE=true` only when you intentionally want to delete prune candidates and deactivate legacy resolved rows.
