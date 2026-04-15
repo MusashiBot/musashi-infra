@@ -19,13 +19,17 @@ const nowIso = new Date().toISOString();
 const [steadyRunsResult, backfillRunsResult, unresolvedResult, resolutionCountResult] = await Promise.all([
   supabase
     .from('ingestion_runs')
-    .select('started_at,completed_at,status,kalshi_markets_fetched,kalshi_snapshots_written,resolutions_detected,errors')
+    .select(
+      'started_at,completed_at,status,kalshi_markets_fetched,kalshi_snapshots_written,resolutions_detected,errors'
+    )
     .eq('run_type', 'resolution_check')
     .order('started_at', { ascending: false })
     .limit(12),
   supabase
     .from('ingestion_runs')
-    .select('started_at,completed_at,status,kalshi_markets_fetched,kalshi_snapshots_written,resolutions_detected,errors')
+    .select(
+      'started_at,completed_at,status,kalshi_markets_fetched,kalshi_snapshots_written,resolutions_detected,errors'
+    )
     .eq('run_type', 'resolution_backfill')
     .order('started_at', { ascending: false })
     .limit(12),
@@ -47,9 +51,7 @@ const mapRuns = (runs: Array<Record<string, unknown>> = []): JobSummaryRun[] =>
     resolutions_detected: Number(run.resolutions_detected ?? 0),
     error_types: Array.isArray(run.errors)
       ? run.errors.map((error) =>
-          typeof error === 'object' && error !== null && 'error_type' in error
-            ? String(error.error_type)
-            : 'unknown',
+          typeof error === 'object' && error !== null && 'error_type' in error ? String(error.error_type) : 'unknown'
         )
       : [],
   }));
@@ -63,6 +65,6 @@ console.log(
       backfill_health: summarizeJobHealth(mapRuns(backfillRunsResult.data ?? [])),
     },
     null,
-    2,
-  ),
+    2
+  )
 );

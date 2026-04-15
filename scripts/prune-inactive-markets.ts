@@ -94,7 +94,9 @@ try {
     }
 
     if (iterations >= MAX_ITERATIONS.SCRIPT_OPERATIONS) {
-      throw new Error(`Pruning exceeded maximum iterations (${MAX_ITERATIONS.SCRIPT_OPERATIONS}). Consider increasing batch size.`);
+      throw new Error(
+        `Pruning exceeded maximum iterations (${MAX_ITERATIONS.SCRIPT_OPERATIONS}). Consider increasing batch size.`
+      );
     }
   }
 
@@ -111,8 +113,8 @@ try {
         deactivated_resolved_rows: deactivatedResolvedRows,
       },
       null,
-      2,
-    ),
+      2
+    )
   );
 } finally {
   await sql.end();

@@ -172,8 +172,8 @@ try {
         compacted_count: compactedCount,
       },
       null,
-      2,
-    ),
+      2
+    )
   );
 } finally {
   await sql.end();

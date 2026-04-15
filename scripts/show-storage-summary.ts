@@ -15,12 +15,25 @@ const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY, {
   },
 });
 
-const [marketCount, archiveCount, snapshotCount, resolutionCount, checkpointResult, runsResult, tableSizes, maintenance] = await Promise.all([
+const [
+  marketCount,
+  archiveCount,
+  snapshotCount,
+  resolutionCount,
+  checkpointResult,
+  runsResult,
+  tableSizes,
+  maintenance,
+] = await Promise.all([
   countRows('markets'),
   countRows('markets_archive'),
   countRows('market_snapshots'),
   countRows('market_resolutions'),
-  supabase.from('sync_checkpoints').select('page_count,market_count,updated_at').eq('checkpoint_key', 'kalshi_full_sync').maybeSingle(),
+  supabase
+    .from('sync_checkpoints')
+    .select('page_count,market_count,updated_at')
+    .eq('checkpoint_key', 'kalshi_full_sync')
+    .maybeSingle(),
   supabase
     .from('ingestion_runs')
     .select('started_at,kalshi_snapshots_written,status')
@@ -51,8 +64,8 @@ console.log(
       checkpoint: checkpointResult.data,
     },
     null,
-    2,
-  ),
+    2
+  )
 );
 
 async function countRows(table: string): Promise<number | null> {
@@ -90,12 +103,7 @@ async function countRows(table: string): Promise<number | null> {
 }
 
 async function loadTableSizes(): Promise<Array<{ table_name: string; total_size: string; bytes: number }> | null> {
-  if (
-    !env.SUPABASE_DB_HOST ||
-    !env.SUPABASE_DB_NAME ||
-    !env.SUPABASE_DB_USER ||
-    !env.SUPABASE_DB_PASSWORD
-  ) {
+  if (!env.SUPABASE_DB_HOST || !env.SUPABASE_DB_NAME || !env.SUPABASE_DB_USER || !env.SUPABASE_DB_PASSWORD) {
     return null;
   }
 
@@ -110,7 +118,9 @@ async function loadTableSizes(): Promise<Array<{ table_name: string; total_size:
   });
 
   try {
-    const rows = await sql<{ table_name: string; total_size: string; bytes: string | number }[]>`select relname as table_name,
+    const rows = await sql<
+      { table_name: string; total_size: string; bytes: string | number }[]
+    >`select relname as table_name,
                                           pg_size_pretty(pg_total_relation_size(oid)) as total_size,
                                           pg_total_relation_size(oid) as bytes
                                      from pg_class
@@ -119,11 +129,13 @@ async function loadTableSizes(): Promise<Array<{ table_name: string; total_size:
                                     order by pg_total_relation_size(oid) desc
                                     limit 12`;
 
-    return Array.from(rows as unknown as Array<{ table_name: string; total_size: string; bytes: number }>).map((row) => ({
-      table_name: row.table_name,
-      total_size: row.total_size,
-      bytes: Number(row.bytes),
-    }));
+    return Array.from(rows as unknown as Array<{ table_name: string; total_size: string; bytes: number }>).map(
+      (row) => ({
+        table_name: row.table_name,
+        total_size: row.total_size,
+        bytes: Number(row.bytes),
+      })
+    );
   } finally {
     await sql.end();
   }
@@ -135,12 +147,7 @@ async function loadMaintenanceSummary(): Promise<{
   compacted_rows: number;
   resolved_active_rows: number;
 } | null> {
-  if (
-    !env.SUPABASE_DB_HOST ||
-    !env.SUPABASE_DB_NAME ||
-    !env.SUPABASE_DB_USER ||
-    !env.SUPABASE_DB_PASSWORD
-  ) {
+  if (!env.SUPABASE_DB_HOST || !env.SUPABASE_DB_NAME || !env.SUPABASE_DB_USER || !env.SUPABASE_DB_PASSWORD) {
     return null;
   }
 
@@ -189,16 +196,14 @@ async function loadMaintenanceSummary(): Promise<{
 
     return {
       prune_candidates_older_than_24h: Number(
-        (pruneRows as unknown as Array<{ prune_candidates: string }>)[0]?.prune_candidates ?? 0,
+        (pruneRows as unknown as Array<{ prune_candidates: string }>)[0]?.prune_candidates ?? 0
       ),
       compact_candidates_older_than_24h: Number(
-        (compactRows as unknown as Array<{ compact_candidates: string }>)[0]?.compact_candidates ?? 0,
+        (compactRows as unknown as Array<{ compact_candidates: string }>)[0]?.compact_candidates ?? 0
       ),
-      compacted_rows: Number(
-        (compactedRows as unknown as Array<{ compacted_rows: string }>)[0]?.compacted_rows ?? 0,
-      ),
+      compacted_rows: Number((compactedRows as unknown as Array<{ compacted_rows: string }>)[0]?.compacted_rows ?? 0),
       resolved_active_rows: Number(
-        (resolvedRows as unknown as Array<{ resolved_active_rows: string }>)[0]?.resolved_active_rows ?? 0,
+        (resolvedRows as unknown as Array<{ resolved_active_rows: string }>)[0]?.resolved_active_rows ?? 0
       ),
     };
   } finally {

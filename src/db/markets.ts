@@ -167,7 +167,7 @@ export async function updateMarketLifecycle(
     resolution: ResolutionOutcome | null;
     resolved_at: string | null;
     last_ingested_at: string;
-  },
+  }
 ): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase
@@ -189,7 +189,7 @@ export async function updateMarketLifecycle(
 
 export async function reconcileMissingOpenMarkets(
   platform: MusashiMarket['platform'],
-  crawlStartedAtIso: string,
+  crawlStartedAtIso: string
 ): Promise<number> {
   const supabase = getSupabase();
   let totalUpdated = 0;

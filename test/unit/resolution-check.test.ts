@@ -74,7 +74,7 @@ describe('runResolutionCheck', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     MockKalshiClient.mockImplementation(
-      () => ({ fetchMarket: mockFetchMarket }) as unknown as InstanceType<typeof KalshiClient>,
+      () => ({ fetchMarket: mockFetchMarket }) as unknown as InstanceType<typeof KalshiClient>
     );
     mockFailOpenRuns.mockResolvedValue(undefined);
     mockStartRun.mockResolvedValue(undefined);
@@ -95,7 +95,7 @@ describe('runResolutionCheck', () => {
     expect(result.status).toBe('success');
     expect(result.resolutions_detected).toBe(1);
     expect(mockInsertResolutions).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ market_id: 'market-1', outcome: 'YES' })]),
+      expect.arrayContaining([expect.objectContaining({ market_id: 'market-1', outcome: 'YES' })])
     );
   });
 
@@ -114,7 +114,7 @@ describe('runResolutionCheck', () => {
         status: 'resolved',
         resolved: true,
         resolution: null,
-      }),
+      })
     );
   });
 

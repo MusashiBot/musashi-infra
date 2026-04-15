@@ -270,7 +270,7 @@ export class KalshiHttpError extends Error {
   constructor(
     public readonly status: number,
     message: string,
-    public readonly path: string,
+    public readonly path: string
   ) {
     super(message);
     this.name = 'KalshiHttpError';

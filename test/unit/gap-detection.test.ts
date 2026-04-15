@@ -75,7 +75,7 @@ describe('runGapDetection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     MockKalshiClient.mockImplementation(
-      () => ({ fetchMarket: mockFetchMarket }) as unknown as InstanceType<typeof KalshiClient>,
+      () => ({ fetchMarket: mockFetchMarket }) as unknown as InstanceType<typeof KalshiClient>
     );
     mockFailOpenRuns.mockResolvedValue(undefined);
     mockStartRun.mockResolvedValue(undefined);
@@ -98,13 +98,8 @@ describe('runGapDetection', () => {
   });
 
   it('records a per-market error and continues with remaining candidates', async () => {
-    mockListGapCandidates.mockResolvedValue([
-      makeCandidate('market-1', null),
-      makeCandidate('market-2', null),
-    ]);
-    mockFetchMarket
-      .mockRejectedValueOnce(new Error('API timeout'))
-      .mockResolvedValueOnce(RAW_MARKET);
+    mockListGapCandidates.mockResolvedValue([makeCandidate('market-1', null), makeCandidate('market-2', null)]);
+    mockFetchMarket.mockRejectedValueOnce(new Error('API timeout')).mockResolvedValueOnce(RAW_MARKET);
 
     const result = await runGapDetection();
 

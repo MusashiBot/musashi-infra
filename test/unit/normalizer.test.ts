@@ -66,7 +66,7 @@ describe('normalizeKalshiMarket', () => {
         status: 'settled',
         result: 'yes',
       }),
-      new Date('2026-04-08T12:00:00Z'),
+      new Date('2026-04-08T12:00:00Z')
     );
 
     expect(market.status).toBe('resolved');
@@ -80,7 +80,7 @@ describe('normalizeKalshiMarket', () => {
         status: 'finalized',
         result: 'no',
       }),
-      new Date('2026-04-08T12:00:00Z'),
+      new Date('2026-04-08T12:00:00Z')
     );
 
     expect(market.status).toBe('resolved');
@@ -105,13 +105,7 @@ describe('normalizeKalshiBatch', () => {
     });
     delete broken.title;
 
-    const result = normalizeKalshiBatch(
-      [
-        buildRaw(),
-        broken,
-      ],
-      new Date('2026-04-08T12:00:00Z'),
-    );
+    const result = normalizeKalshiBatch([buildRaw(), broken], new Date('2026-04-08T12:00:00Z'));
 
     expect(result.normalized).toHaveLength(1);
     expect(result.errors).toHaveLength(1);
