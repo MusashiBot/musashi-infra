@@ -117,9 +117,12 @@ export async function runResolutionCheck(options: ResolutionCheckOptions = {}): 
               ? {
                   marketId: candidate.id,
                   status: lifecycleStatus,
-                  resolved: false,
+                  resolved: lifecycleStatus === 'resolved',
                   resolution: null,
-                  resolved_at: null,
+                  resolved_at:
+                    lifecycleStatus === 'resolved'
+                      ? raw.latest_expiration_time ?? raw.close_time ?? startedAtIso
+                      : null,
                   last_ingested_at: startedAtIso,
                 }
               : null;
