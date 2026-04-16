@@ -29,6 +29,12 @@ export interface SnapshotGapCandidate {
   last_snapshot_at: string | null;
 }
 
+export interface SettlesAtBackfillCandidate {
+  id: string;
+  platform_id: string;
+  closes_at: string | null;
+}
+
 interface MarketRow {
   id: string;
   platform: MusashiMarket['platform'];
@@ -162,6 +168,36 @@ export async function listSnapshotGapCandidates(thresholdIso: string, limit?: nu
   return (data ?? []) as SnapshotGapCandidate[];
 }
 
+export async function listSettlesAtBackfillCandidates(
+  now: Date,
+  limit?: number
+): Promise<SettlesAtBackfillCandidate[]> {
+  const supabase = getSupabase();
+  let query = supabase
+    .from('markets')
+    .select('id, platform_id, closes_at')
+    .eq('platform', 'kalshi')
+    .eq('resolved', false)
+    .eq('is_active', false)
+    .eq('status', 'closed')
+    .is('settles_at', null)
+    .not('closes_at', 'is', null)
+    .lte('closes_at', now.toISOString())
+    .order('closes_at', { ascending: true });
+
+  if (limit !== undefined) {
+    query = query.limit(limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to list settles_at backfill candidates: ${error.message}`);
+  }
+
+  return (data ?? []) as SettlesAtBackfillCandidate[];
+}
+
 export async function updateMarketLifecycle(
   marketId: string,
   updates: {
@@ -189,6 +225,25 @@ export async function updateMarketLifecycle(
 
   if (error) {
     throw new Error(`Failed to update market lifecycle: ${error.message}`);
+  }
+}
+
+export async function updateMarketSettlesAt(
+  marketId: string,
+  settlesAt: string,
+  lastIngestedAt: string
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('markets')
+    .update({
+      settles_at: settlesAt,
+      last_ingested_at: lastIngestedAt,
+    })
+    .eq('id', marketId);
+
+  if (error) {
+    throw new Error(`Failed to update market settles_at: ${error.message}`);
   }
 }
 

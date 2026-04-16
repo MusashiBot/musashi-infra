@@ -22,6 +22,7 @@
     "job:crawl-advance": "tsx scripts/run-crawl-advance.ts",
     "job:resolution-check": "tsx scripts/run-resolution-check.ts",
     "job:resolution-backfill": "tsx scripts/run-resolution-backfill.ts",
+    "job:settles-at-backfill": "tsx scripts/run-settles-at-backfill.ts",
     "job:gap-detection": "tsx scripts/run-gap-detection.ts",
     "job:prune-inactive-markets": "tsx scripts/prune-inactive-markets.ts",
     "job:archive-inactive-markets": "tsx scripts/archive-inactive-markets.ts",
