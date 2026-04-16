@@ -125,8 +125,8 @@ Use `npm run status:storage` when you want table counts and snapshot-growth prox
 If `SUPABASE_DB_HOST`, `SUPABASE_DB_NAME`, `SUPABASE_DB_USER`, and `SUPABASE_DB_PASSWORD` are set, it also reports real per-table storage size.
 It also reports prune candidates for low-value inactive Kalshi rows and legacy resolved rows that still need deactivation.
 
-Use `npm run status:resolution` when you want to see whether settled markets are being detected and how many unresolved past-close markets remain.
-It reports both the steady 5-minute resolution check and the larger backlog backfill runner.
+Use `npm run status:resolution` when you want to see whether settled markets are being detected and how much of the unresolved queue is truly overdue versus still waiting for settlement metadata.
+It reports the steady 5-minute resolution check, the larger backlog backfill runner, and the `settles_at` backfill job separately.
 
 Use `npm run status:gap` when you want to see current snapshot gap pressure and the recent health of the backfill job.
 
