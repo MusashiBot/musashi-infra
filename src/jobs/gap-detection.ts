@@ -66,10 +66,10 @@ export async function runGapDetection(): Promise<IngestionRunRecord> {
       }
 
       processed += 1;
-      result.kalshi_markets_fetched += 1;
 
       try {
         const raw = await client.fetchMarket(candidate.platform_id);
+        result.kalshi_markets_fetched += 1;
 
         if (!raw) {
           continue;

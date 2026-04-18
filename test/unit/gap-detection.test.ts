@@ -105,6 +105,7 @@ describe('runGapDetection', () => {
 
     expect(result.status).toBe('partial');
     expect(result.kalshi_errors).toBe(1);
+    expect(result.kalshi_markets_fetched).toBe(1);
     expect(result.errors[0]?.error_type).toBe('gap_detection_market_failed');
     expect(mockWriteSnapshots).toHaveBeenCalled();
   });
