@@ -98,21 +98,22 @@ npm test
 ### Smoke test against real DB data
 
 ```bash
-# Top 5 events by liquidity (default)
+# Top 5 active events by liquidity (default)
 npm run event:show
 
 # One specific event_id
 npm run event:show -- --event-id FED-SEP-2025
 
-# All markets in a category
+# Active markets in a category
 npm run event:show -- --category fed_policy
 
 # Show more events
 npm run event:show -- --limit 20
 ```
 
-Diagnostic counts (markets fetched, snapshots fetched, clusters formed) go to
-stderr. The `EventIntelligence[]` JSON goes to stdout, so you can pipe it:
+Diagnostic counts (markets fetched, snapshots fetched, clusters formed,
+historical resolutions found) go to stderr. The `EventIntelligence[]` JSON goes
+to stdout, so you can pipe it:
 
 ```bash
 npm run event:show -- --limit 1 | jq '.[0].trust_context'
@@ -136,9 +137,9 @@ stored `markets` rows have no `event_id` populated — check ingestion.
 ### DB querying constraints
 
 - **No index on `liquidity`.** `ORDER BY liquidity` at the DB level causes a full
-  table scan and hits the statement timeout. All sorting by liquidity is done in
-  JavaScript after fetching. If a DB-level sort is needed in future, add an index
-  on `markets(liquidity)`.
+  table scan and hits the statement timeout. The smoke script pages through the
+  active market selection, then sorts by primary-market liquidity in JavaScript.
+  If a DB-level sort is needed in future, add an index on `markets(liquidity)`.
 
 - **`fetched_at`, `cache_hit`, `data_age_seconds` are not stored.** These fields
   exist on `MusashiMarket` for API responses but are never written to the `markets`
