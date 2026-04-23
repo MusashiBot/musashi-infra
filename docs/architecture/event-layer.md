@@ -45,11 +45,19 @@ runs on identical data return the same result.
 ### Probability change (FR4)
 
 `computeProbabilityChange(marketId, snapshots, hoursBack)` returns
-`currentYesPrice - pastYesPrice`, or `null` when fewer than two snapshots exist.
+`currentYesPrice - pastYesPrice`, or `null` when:
+- fewer than two snapshots exist for the market, or
+- no snapshot falls within the proximity window (see below).
 
-"Past" is defined as the snapshot with the smallest time-distance to
+"Past" is the snapshot with the smallest time-distance to
 `latestSnapshotTime - hoursBack`. This approach is tolerant of irregular
 snapshot cadences.
+
+**Proximity guard (`LOOKBACK_TOLERANCE_RATIO = 0.5`):** The reference snapshot
+must land within 50% of the window from the target time. For a 24h request the
+reference must be between 12h and 36h ago; for a 7d request between 3.5d and
+10.5d ago. Without this guard, two snapshots seconds apart could produce a
+plausible-looking 7-day change from essentially no history.
 
 **Assumption:** Snapshot times are stored with enough resolution that
 `String.prototype.localeCompare` ordering is correct. This holds for ISO 8601
@@ -123,9 +131,10 @@ npm run event:show -- --limit 1 | jq '.[0].trust_context'
 | Field | Healthy signal |
 |---|---|
 | `related_markets` | Non-empty for Kalshi events with multiple contracts |
-| `probability_change_24h` | Non-null if ≥ 2 snapshots exist in the last 24h |
-| `probability_change_7d` | `null` is expected until 7+ days of snapshot history exists |
+| `probability_change_24h` | Non-null only when a snapshot lands within ±12h of the 24h-ago mark |
+| `probability_change_7d` | `null` is normal until ≥7 days of history; also null if no snapshot is within ±84h of the 7d-ago mark |
 | `trust_context.confidence_label` | Varies between `low` / `medium` / `high` across markets |
+| `trust_context.historical_resolution_count` | Count of resolved markets within this specific cluster, not a global total |
 | `event_id` | Real Kalshi `event_ticker` values for grouped markets |
 
 **Red flag:** If every cluster has an `event_id` starting with `singleton:`, the
@@ -175,4 +184,4 @@ client release. Use `nvm install 20 && nvm alias default 20` to upgrade.
 
 5. **7d changes need longer snapshot history.** The 7-day change will be `null`
    for most markets until the system has been running long enough to have 7+ days
-   of snapshots. This is expected behaviour, not a bug.
+   of snapshots within the proximity window. This is expected behaviour, not a bug.
