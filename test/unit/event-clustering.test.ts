@@ -144,6 +144,90 @@ describe('clusterMarkets', () => {
 });
 
 // ---------------------------------------------------------------------------
+// clusterMarkets — series_id fallback
+// ---------------------------------------------------------------------------
+
+describe('clusterMarkets (series_id fallback)', () => {
+  it('groups markets by series_id when event_id is null', () => {
+    const m1 = buildMarket({ event_id: null, series_id: 'FED-SERIES' });
+    const m2 = buildMarket({ event_id: null, series_id: 'FED-SERIES' });
+
+    const clusters = clusterMarkets([m1, m2]);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]?.source).toBe('series_id');
+    expect(clusters[0]?.cluster_id).toBe('series:FED-SERIES');
+    expect(clusters[0]?.markets).toHaveLength(2);
+  });
+
+  it('groups markets by series_id when event_id is blank', () => {
+    const m1 = buildMarket({ event_id: '', series_id: 'RATE-SERIES' });
+    const m2 = buildMarket({ event_id: '  ', series_id: 'RATE-SERIES' });
+
+    const clusters = clusterMarkets([m1, m2]);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]?.source).toBe('series_id');
+  });
+
+  it('does not merge markets with different series_ids', () => {
+    const m1 = buildMarket({ event_id: null, series_id: 'SERIES-A' });
+    const m2 = buildMarket({ event_id: null, series_id: 'SERIES-B' });
+
+    const clusters = clusterMarkets([m1, m2]);
+
+    expect(clusters).toHaveLength(2);
+    expect(clusters.every((c) => c.source === 'series_id')).toBe(true);
+  });
+
+  it('does not merge event_id markets with series_id markets even if series_id matches', () => {
+    const withEvent = buildMarket({ event_id: 'REAL-EVENT', series_id: 'SHARED-SERIES' });
+    const withSeries = buildMarket({ event_id: null, series_id: 'SHARED-SERIES' });
+
+    const clusters = clusterMarkets([withEvent, withSeries]);
+
+    expect(clusters).toHaveLength(2);
+    const eventCluster = clusters.find((c) => c.source === 'event_id');
+    const seriesCluster = clusters.find((c) => c.source === 'series_id');
+    expect(eventCluster?.markets).toHaveLength(1);
+    expect(seriesCluster?.markets).toHaveLength(1);
+  });
+
+  it('falls back to singleton when both event_id and series_id are null', () => {
+    const m = buildMarket({ event_id: null, series_id: null });
+
+    const clusters = clusterMarkets([m]);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]?.source).toBe('singleton');
+  });
+
+  it('falls back to singleton when series_id is blank', () => {
+    const m = buildMarket({ event_id: null, series_id: '   ' });
+
+    const clusters = clusterMarkets([m]);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0]?.source).toBe('singleton');
+  });
+
+  it('handles all three tiers in one call', () => {
+    const byEvent1 = buildMarket({ event_id: 'EVT-1', series_id: null });
+    const byEvent2 = buildMarket({ event_id: 'EVT-1', series_id: null });
+    const bySeries1 = buildMarket({ event_id: null, series_id: 'SER-X' });
+    const bySeries2 = buildMarket({ event_id: null, series_id: 'SER-X' });
+    const solo = buildMarket({ event_id: null, series_id: null });
+
+    const clusters = clusterMarkets([byEvent1, byEvent2, bySeries1, bySeries2, solo]);
+
+    expect(clusters).toHaveLength(3);
+    expect(clusters.filter((c) => c.source === 'event_id')).toHaveLength(1);
+    expect(clusters.filter((c) => c.source === 'series_id')).toHaveLength(1);
+    expect(clusters.filter((c) => c.source === 'singleton')).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // selectPrimaryMarket
 // ---------------------------------------------------------------------------
 
