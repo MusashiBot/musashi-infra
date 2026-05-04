@@ -2,15 +2,18 @@ import type { MusashiMarket } from '../types/market.js';
 import type { EventCluster } from '../types/event.js';
 
 /**
- * Group a flat list of markets into EventClusters.
+ * Group a flat list of markets into EventClusters using a three-tier strategy:
  *
- * Primary rule: markets that share a non-empty event_id are clustered together.
- * Fallback: markets with null or blank event_id each form their own singleton
- * cluster rather than being merged — this avoids false groupings.
+ *   1. event_id  — markets sharing a non-blank event_id cluster together.
+ *   2. series_id — among the remainder, markets sharing a non-blank series_id
+ *                  cluster together (cluster_id is prefixed with 'series:').
+ *   3. singleton — any market with neither becomes its own cluster.
+ *
+ * All rules are deterministic and avoid false merges.
  */
 export function clusterMarkets(markets: MusashiMarket[]): EventCluster[] {
   const byEventId = new Map<string, MusashiMarket[]>();
-  const singletons: MusashiMarket[] = [];
+  const needsSeriesFallback: MusashiMarket[] = [];
 
   for (const market of markets) {
     const eid = market.event_id;
@@ -22,6 +25,23 @@ export function clusterMarkets(markets: MusashiMarket[]): EventCluster[] {
         byEventId.set(eid, [market]);
       }
     } else {
+      needsSeriesFallback.push(market);
+    }
+  }
+
+  const bySeriesId = new Map<string, MusashiMarket[]>();
+  const singletons: MusashiMarket[] = [];
+
+  for (const market of needsSeriesFallback) {
+    const sid = market.series_id;
+    if (sid !== null && sid.trim().length > 0) {
+      const existing = bySeriesId.get(sid);
+      if (existing !== undefined) {
+        existing.push(market);
+      } else {
+        bySeriesId.set(sid, [market]);
+      }
+    } else {
       singletons.push(market);
     }
   }
@@ -30,6 +50,10 @@ export function clusterMarkets(markets: MusashiMarket[]): EventCluster[] {
 
   for (const [eid, group] of byEventId) {
     clusters.push({ cluster_id: eid, source: 'event_id', markets: group });
+  }
+
+  for (const [sid, group] of bySeriesId) {
+    clusters.push({ cluster_id: `series:${sid}`, source: 'series_id', markets: group });
   }
 
   for (const market of singletons) {

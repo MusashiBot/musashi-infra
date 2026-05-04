@@ -21,13 +21,24 @@ real-world event — the primary primitive for agent consumers.
 
 ### Clustering (FR1)
 
-Markets are grouped by `event_id` when the field is non-null and non-blank.
-Markets with a missing or blank `event_id` become singleton clusters — one
-market, one event. We do not attempt fuzzy title matching or LLM-based grouping
-in v1.
+Three-tier deterministic strategy, applied in order:
+
+1. **event_id** — markets sharing a non-blank `event_id` cluster together.
+   `cluster_id` = the raw `event_id` value. `source = 'event_id'`.
+
+2. **series_id fallback** — among markets with no usable `event_id`, those
+   sharing a non-blank `series_id` cluster together.
+   `cluster_id` = `'series:{series_id}'`. `source = 'series_id'`.
+
+3. **singleton** — any market with neither a usable `event_id` nor `series_id`
+   forms its own cluster.
+   `cluster_id` = `'singleton:{market_id}'`. `source = 'singleton'`.
+
+We do not attempt fuzzy title matching or LLM-based grouping.
 
 **Why:** Safe defaults over clever guesses. False merges would silently corrupt
-the event object; false splits are harmless and easy to debug.
+the event object; false splits are harmless and easy to debug. The `series_id`
+fallback reduces singleton sprawl without risking incorrect merges.
 
 ### Primary market selection (FR2)
 
@@ -45,11 +56,19 @@ runs on identical data return the same result.
 ### Probability change (FR4)
 
 `computeProbabilityChange(marketId, snapshots, hoursBack)` returns
-`currentYesPrice - pastYesPrice`, or `null` when fewer than two snapshots exist.
+`currentYesPrice - pastYesPrice`, or `null` when:
+- fewer than two snapshots exist for the market, or
+- no snapshot falls within the proximity window (see below).
 
-"Past" is defined as the snapshot with the smallest time-distance to
+"Past" is the snapshot with the smallest time-distance to
 `latestSnapshotTime - hoursBack`. This approach is tolerant of irregular
 snapshot cadences.
+
+**Proximity guard (`LOOKBACK_TOLERANCE_RATIO = 0.5`):** The reference snapshot
+must land within 50% of the window from the target time. For a 24h request the
+reference must be between 12h and 36h ago; for a 7d request between 3.5d and
+10.5d ago. Without this guard, two snapshots seconds apart could produce a
+plausible-looking 7-day change from essentially no history.
 
 **Assumption:** Snapshot times are stored with enough resolution that
 `String.prototype.localeCompare` ordering is correct. This holds for ISO 8601
@@ -76,13 +95,13 @@ Kalshi liquidity distributions become better understood.
 
 | Condition | Label |
 |---|---|
-| `liquidity >= 10 000` AND `volume_24h >= 1 000` | `high` |
-| `liquidity >= 1 000` OR `volume_24h >= 100` | `medium` |
+| (`liquidity >= 10 000` OR `open_interest >= 5 000`) AND `volume_24h >= 1 000` | `high` |
+| `liquidity >= 1 000` OR `open_interest >= 1 000` OR `volume_24h >= 100` | `medium` |
 | everything else (including all-null) | `low` |
 
-`open_interest` is surfaced in `trust_context` for consumers but is not used in
-the confidence label formula in v1 — its distribution on Kalshi is not yet well
-characterised.
+`open_interest` is now included in the formula as a depth proxy. Kalshi does not
+always populate `liquidity`, and `open_interest` is the next-best indicator of
+an actively traded market.
 
 ## How to test
 
@@ -124,9 +143,10 @@ npm run event:show -- --limit 1 | jq '.[0].trust_context'
 | Field | Healthy signal |
 |---|---|
 | `related_markets` | Non-empty for Kalshi events with multiple contracts |
-| `probability_change_24h` | Non-null if ≥ 2 snapshots exist in the last 24h |
-| `probability_change_7d` | `null` is expected until 7+ days of snapshot history exists |
+| `probability_change_24h` | Non-null only when a snapshot lands within ±12h of the 24h-ago mark |
+| `probability_change_7d` | `null` is normal until ≥7 days of history; also null if no snapshot is within ±84h of the 7d-ago mark |
 | `trust_context.confidence_label` | Varies between `low` / `medium` / `high` across markets |
+| `trust_context.historical_resolution_count` | Count of resolved markets within this specific cluster, not a global total |
 | `event_id` | Real Kalshi `event_ticker` values for grouped markets |
 
 **Red flag:** If every cluster has an `event_id` starting with `singleton:`, the
@@ -155,10 +175,10 @@ client release. Use `nvm install 20 && nvm alias default 20` to upgrade.
 
 ## Known weaknesses / v2 ideas
 
-1. **Singleton sprawl.** Kalshi markets without an `event_id` each become their
-   own cluster. If Kalshi populates `event_id` inconsistently, the clustering
-   becomes fragmented. A title-similarity pass (deterministic, not LLM) could
-   close this gap.
+1. **Singleton sprawl (partially mitigated).** Markets with no `event_id` now
+   fall back to `series_id` grouping before becoming singletons. If Kalshi
+   populates neither field consistently, fragmentation remains. A deterministic
+   title-similarity pass (not LLM) could further reduce singletons in v2.
 
 2. **Confidence thresholds are guesses.** The 10 000 / 1 000 / 100 values were
    chosen without seeing real Kalshi liquidity distributions. The first step
@@ -176,4 +196,4 @@ client release. Use `nvm install 20 && nvm alias default 20` to upgrade.
 
 5. **7d changes need longer snapshot history.** The 7-day change will be `null`
    for most markets until the system has been running long enough to have 7+ days
-   of snapshots. This is expected behaviour, not a bug.
+   of snapshots within the proximity window. This is expected behaviour, not a bug.

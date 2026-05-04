@@ -6,13 +6,17 @@ export type ConfidenceLabel = 'low' | 'medium' | 'high';
 
 /**
  * Internal grouping of related markets around one real-world event.
- * source='event_id'  → grouped by shared event_id from the platform
- * source='singleton' → no event_id; market stands alone
+ * source='event_id'  → grouped by shared non-blank event_id
+ * source='series_id' → event_id missing; grouped by shared non-blank series_id
+ * source='singleton' → no event_id or series_id; market stands alone
  */
 export interface EventCluster {
-  /** Shared event_id, or 'singleton:{market_id}' for ungrouped markets. */
+  /**
+   * Shared event_id, shared series_id (prefixed 'series:'), or
+   * 'singleton:{market_id}' for ungrouped markets.
+   */
   cluster_id: string;
-  source: 'event_id' | 'singleton';
+  source: 'event_id' | 'series_id' | 'singleton';
   /** Always non-empty. */
   markets: MusashiMarket[];
 }
@@ -46,6 +50,7 @@ export interface EventIntelligence {
   probability_change_24h: number | null;
   probability_change_7d: number | null;
   closes_at: string | null;
+  settles_at: string | null;
   related_markets: RelatedMarket[];
   trust_context: TrustContext;
 }

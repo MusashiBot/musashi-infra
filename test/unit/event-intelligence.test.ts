@@ -195,6 +195,18 @@ describe('computeConfidenceLabel', () => {
   it('does not reach high if volume meets threshold but liquidity does not', () => {
     expect(computeConfidenceLabel(9_999, 1_000, null)).toBe('medium');
   });
+
+  it('returns high when open_interest substitutes for missing liquidity', () => {
+    expect(computeConfidenceLabel(null, 1_000, 5_000)).toBe('high');
+  });
+
+  it('returns medium when open_interest meets medium threshold but volume is low', () => {
+    expect(computeConfidenceLabel(null, 0, 1_000)).toBe('medium');
+  });
+
+  it('returns low when open_interest is below medium threshold and liquidity/volume are zero', () => {
+    expect(computeConfidenceLabel(0, 0, 999)).toBe('low');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -401,6 +413,24 @@ describe('buildEventIntelligence', () => {
     expect(result.current_probability).toBeCloseTo(0.72);
   });
 
+  it('exposes settles_at from the primary market', () => {
+    const market = buildMarket({ settles_at: '2026-09-01T00:00:00Z' });
+    const cluster = buildCluster([market]);
+
+    const result = buildEventIntelligence(cluster, [], 0);
+
+    expect(result.settles_at).toBe('2026-09-01T00:00:00Z');
+  });
+
+  it('exposes settles_at as null when primary market has no settles_at', () => {
+    const market = buildMarket({ settles_at: null });
+    const cluster = buildCluster([market]);
+
+    const result = buildEventIntelligence(cluster, [], 0);
+
+    expect(result.settles_at).toBeNull();
+  });
+
   it('no field is silently omitted — all keys are explicitly present', () => {
     const market = buildMarket();
     const cluster = buildCluster([market]);
@@ -416,6 +446,7 @@ describe('buildEventIntelligence', () => {
       'probability_change_24h',
       'probability_change_7d',
       'closes_at',
+      'settles_at',
       'related_markets',
       'trust_context',
     ];

@@ -73,22 +73,25 @@ export function computeProbabilityChange(
  * Map liquidity / volume / open_interest into a human-readable confidence label.
  *
  * Thresholds (v1 — tune as data distributions are better understood):
- *   high   : liquidity >= 10 000 AND volume_24h >= 1 000
- *   medium : liquidity >= 1 000  OR  volume_24h >= 100
+ *   high   : (liquidity >= 10 000 OR open_interest >= 5 000) AND volume_24h >= 1 000
+ *   medium : liquidity >= 1 000 OR open_interest >= 1 000 OR volume_24h >= 100
  *   low    : everything else (including all-null inputs)
+ *
+ * open_interest is included as a depth proxy when liquidity is not reported.
  */
 export function computeConfidenceLabel(
   liquidity: number | null,
   volume24h: number | null,
-  _openInterest: number | null
+  openInterest: number | null
 ): ConfidenceLabel {
   const liq = liquidity ?? 0;
   const vol = volume24h ?? 0;
+  const oi = openInterest ?? 0;
 
-  if (liq >= HIGH_LIQUIDITY_THRESHOLD && vol >= HIGH_VOLUME_THRESHOLD) {
+  if ((liq >= HIGH_LIQUIDITY_THRESHOLD || oi >= 5_000) && vol >= HIGH_VOLUME_THRESHOLD) {
     return 'high';
   }
-  if (liq >= MEDIUM_LIQUIDITY_THRESHOLD || vol >= MEDIUM_VOLUME_THRESHOLD) {
+  if (liq >= MEDIUM_LIQUIDITY_THRESHOLD || oi >= MEDIUM_LIQUIDITY_THRESHOLD || vol >= MEDIUM_VOLUME_THRESHOLD) {
     return 'medium';
   }
   return 'low';
@@ -167,6 +170,7 @@ export function buildEventIntelligence(
     probability_change_24h: change24h,
     probability_change_7d: change7d,
     closes_at: primary.closes_at,
+    settles_at: primary.settles_at,
     related_markets: relatedMarkets,
     trust_context: trustContext,
   };
