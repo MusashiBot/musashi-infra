@@ -147,6 +147,9 @@ const qualityMetrics = {
   pct_non_null_24h_change: pct(nonNull24h),
   pct_non_null_7d_change: pct(nonNull7d),
   pct_singleton_clusters: pct(singletons),
+  ratio_non_null_24h_change: pct(nonNull24h),
+  ratio_non_null_7d_change: pct(nonNull7d),
+  ratio_singleton_clusters: pct(singletons),
   avg_related_markets_per_event: totalEvents > 0 ? Math.round((totalRelated / totalEvents) * 10) / 10 : 0,
   raw: {
     non_null_24h: nonNull24h,
