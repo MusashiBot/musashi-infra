@@ -2,8 +2,9 @@ import { chunkArray } from '../lib/collections.js';
 import { buildHistoricalResolutionCounts } from '../lib/event-resolution-counts.js';
 import { clusterMarkets } from '../lib/event-clustering.js';
 import { buildEventIntelligence } from '../lib/event-intelligence.js';
+import { getEnv } from '../lib/env.js';
 import type { MarketCategory, MusashiMarket } from '../types/market.js';
-import type { EventIntelligence } from '../types/event.js';
+import type { EventCluster, EventIntelligence } from '../types/event.js';
 import type { MarketSnapshot } from '../types/storage.js';
 import { getSupabase } from './supabase.js';
 
@@ -13,7 +14,6 @@ import { getSupabase } from './supabase.js';
 
 const DB_BATCH_SIZE = 200;
 const SNAPSHOT_LOOKBACK_DAYS = 8; // covers both 24h and 7d change windows
-const TOP_EVENTS_MARKET_SCAN_LIMIT = 5_000;
 
 const MARKET_COLUMNS =
   'id,platform,platform_id,event_id,series_id,title,description,category,url,' +
@@ -24,6 +24,28 @@ const SNAPSHOT_COLUMNS =
   'market_id,snapshot_time,yes_price,no_price,volume_24h,open_interest,liquidity,spread,source,fetch_latency_ms,created_at';
 
 const MARKET_PAGE_SIZE = 1_000;
+
+// ---------------------------------------------------------------------------
+// Scoring
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute a composite ranking score for one market.
+ *
+ * Combines liquidity, open_interest, and volume_24h with equal weight.
+ * Null fields are treated as 0 so markets with partial data still rank.
+ * Higher score = more liquid/active market.
+ */
+export function computeMarketScore(market: MusashiMarket): number {
+  return (market.liquidity ?? 0) + (market.open_interest ?? 0) + market.volume_24h;
+}
+
+/**
+ * Best score across all markets in a cluster. Used to rank clusters for display.
+ */
+export function computeClusterScore(cluster: EventCluster): number {
+  return Math.max(...cluster.markets.map(computeMarketScore));
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -43,7 +65,7 @@ export async function getEventIntelligenceById(eventId: string): Promise<EventIn
 
 /**
  * List EventIntelligence objects for all active markets in a category,
- * sorted by primary market liquidity descending.
+ * sorted by composite score descending.
  */
 export async function listEventIntelligenceByCategory(
   category: MarketCategory,
@@ -55,11 +77,12 @@ export async function listEventIntelligenceByCategory(
 
 /**
  * List the top EventIntelligence objects across all active markets,
- * sorted by primary market liquidity descending.
+ * sorted by composite score descending.
+ * Scan is bounded by EVENT_TOP_SCAN_LIMIT (default 5 000) to stay within DB timeouts.
  */
 export async function listTopEventIntelligence(limit = 10): Promise<EventIntelligence[]> {
-  const markets = await fetchActiveMarkets({});
-  const markets = await fetchActiveMarkets({ maxRows: TOP_EVENTS_MARKET_SCAN_LIMIT });
+  const { eventTopScanLimit } = getEnv();
+  const markets = await fetchActiveMarkets({ maxRows: eventTopScanLimit });
   return buildEvents(markets, limit);
 }
 
@@ -101,24 +124,20 @@ async function fetchActiveMarkets(options: FetchMarketsOptions): Promise<Musashi
 
     rows.push(...((data ?? []) as unknown as Array<Record<string, unknown>>));
 
+    // Honour maxRows cap before fetching more pages
     if (options.maxRows !== undefined && rows.length >= options.maxRows) {
-      return rows.slice(0, options.maxRows).map(
-        (row): MusashiMarket => ({
-          ...(row as Omit<MusashiMarket, 'fetched_at' | 'cache_hit' | 'data_age_seconds'>),
-          fetched_at: (row['last_ingested_at'] as string | undefined) ?? new Date().toISOString(),
-          cache_hit: false,
-          data_age_seconds: 0,
-        })
-      );
+      break;
     }
 
     if (!data || data.length < MARKET_PAGE_SIZE) break;
     from += MARKET_PAGE_SIZE;
   }
 
+  const capped = options.maxRows !== undefined ? rows.slice(0, options.maxRows) : rows;
+
   // Map DB rows → MusashiMarket. fetched_at / cache_hit / data_age_seconds are
-  // API-only fields that are never stored — fill them with neutral defaults.
-  return rows.map(
+  // API-only fields never stored — fill with neutral defaults.
+  return capped.map(
     (row): MusashiMarket => ({
       ...(row as Omit<MusashiMarket, 'fetched_at' | 'cache_hit' | 'data_age_seconds'>),
       fetched_at: (row['last_ingested_at'] as string | undefined) ?? new Date().toISOString(),
@@ -199,14 +218,14 @@ async function buildEvents(markets: MusashiMarket[], limit?: number): Promise<Ev
 
   const clusters = clusterMarkets(markets);
 
-  // Sort clusters by primary market liquidity descending — done in memory to
-  // avoid an unindexed ORDER BY on the markets table.
+  // Sort clusters by composite score descending.
+  // cluster_id is the lexicographic tiebreaker for determinism.
   const sorted = clusters
-    .map((cluster) => {
-      const bestLiquidity = Math.max(...cluster.markets.map((m) => m.liquidity ?? -1));
-      return { cluster, bestLiquidity };
-    })
-    .sort((a, b) => b.bestLiquidity - a.bestLiquidity);
+    .map((cluster) => ({ cluster, score: computeClusterScore(cluster) }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.cluster.cluster_id.localeCompare(b.cluster.cluster_id);
+    });
 
   const selected = limit !== undefined ? sorted.slice(0, limit) : sorted;
   const selectedClusters = selected.map((s) => s.cluster);
