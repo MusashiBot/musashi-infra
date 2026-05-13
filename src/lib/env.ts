@@ -33,6 +33,7 @@ const MusashiEnvSchema = z.object({
   snapshotActiveWindowHours: z.coerce.number().int().positive().default(24),
   snapshotMinVolume24h: z.coerce.number().nonnegative().default(1000),
   snapshotMinLiquidity: z.coerce.number().nonnegative().default(1000),
+  eventTopScanLimit: z.coerce.number().int().positive().default(5_000),
 });
 
 export type MusashiEnv = z.infer<typeof MusashiEnvSchema>;
@@ -70,6 +71,7 @@ export function getEnv(): MusashiEnv {
     snapshotActiveWindowHours: process.env.SNAPSHOT_ACTIVE_WINDOW_HOURS,
     snapshotMinVolume24h: process.env.SNAPSHOT_MIN_VOLUME_24H,
     snapshotMinLiquidity: process.env.SNAPSHOT_MIN_LIQUIDITY,
+    eventTopScanLimit: process.env.EVENT_TOP_SCAN_LIMIT,
   };
 
   const result = MusashiEnvSchema.safeParse(rawEnv);

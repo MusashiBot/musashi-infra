@@ -39,7 +39,8 @@
     "status:resolution:kpis": "tsx scripts/show-resolution-kpis.ts",
     "status:gap": "tsx scripts/show-gap-summary.ts",
     "check:collection": "tsx scripts/check-collection-health.ts",
-    "event:show": "tsx scripts/show-event-intelligence.ts"
+    "event:show": "tsx scripts/show-event-intelligence.ts",
+    "status:event": "tsx scripts/show-event-status.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
